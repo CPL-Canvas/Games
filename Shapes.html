@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+	<meta content="utf-8" http-equiv="encoding">
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"> </canvas>
+<script>
+////////////////////////////////
+//
+//     shapes.html
+//
+//     May 2020   Pete Loeppert
+//
+////////////////////////////////
+// Globals
+////////////////////////////////
+var canvas;
+var ctx;
+const BKGND =  '#00FFFF'; // background color
+const RED = '#FF0000';
+const GREEN = '#00FF00';
+const BLUE = '#0000FF';
+const YELLOW = '#FFFF00';
+const HIGHLIGHT = '#000000';
+const WHITE = '#FFFFFF';
+const BLACK = '#000000';
+const ABFIELD = '#FFEBCD';
+var colors = [RED, GREEN, BLUE, YELLOW]; 
+
+const CIRCLE = 0;
+const SQUARE = 1;
+const TRIANGLE = 2;
+const DIAMOND = 3;
+const UNSELECTED = -1;
+var shapes = [CIRCLE, SQUARE, TRIANGLE, DIAMOND];
+
+const LGSIZE = 50;
+const SMSIZE = 15;
+
+var mouseX;
+var mouseY;
+
+var moving = false;
+var speed = 10;
+var moveX;
+var moveY;
+var moveS;
+var moveC;
+var moveF;
+
+var difficulty = -1;
+var diffSelect = 1;   // 0 = H, 1 = M, 2 = E
+var diffHi = [9, 50, 10000];
+var diffLo = [1, 10, 51];
+var showAbout = false;
+var annotate = false;
+var showSol = false;
+var state = 0;
+var iHint = 16;
+var nPB = 0;
+
+var now = 0;  // date / time
+var then = 0;  // date / time
+
+// FIELD //
+var field_C = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+var field_S = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+var field_H = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+// results //
+var results_C = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+var results_S = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+var results_F = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+var results_H = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+// solution  //
+var sol_C = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+var sol_S = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+var sol_F = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+var sol_H = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+///////End of Globals///////////
+
+////////////////////////////////
+// 		FIELD
+// 	  0  4  8  12
+// 	  1  5  9  13
+// 	  2  6 10  14
+// 	  3  7 11  15
+////////////////////////////////
+//     	 colors
+//  0    red		
+//  1    green    
+//  2    blue     
+//  3    yellow   
+//             
+//		 shapes
+//  0	 circle
+//  1    square
+//  2    triangle
+//  3    diamond
+// -1    unassigned/empty
+//
+////////////////////////////////
+
+
+function updateMousePos(evt){
+	var rect = canvas.getBoundingClientRect();
+	var root = document.documentElement;
+	mouseX = evt.clientX - rect.left - root.scrollLeft;
+	mouseY = evt.clientY - rect.top - root.scrollTop;
+}
+
+window.onload = function(){
+	canvas = document.getElementById("gameCanvas");
+	ctx = canvas.getContext("2d");
+	console.clear();
+	var framesPerSecond = 30;
+	setInterval(updateAll, 1000/framesPerSecond);	// movement update 30/sec
+	setInterval(addTimer, 100);	// update timer every 100ms
+	canvas.addEventListener("mousemove", updateMousePos);
+	canvas.addEventListener('click', processClick);
+	initDB();
+	drawAll();
+}
+
+function processClick(){
+	var i,j,n;
+	
+//	console.log(mouseX+' : '+mouseY);
+	if(moving){  // abort moving a shape
+		results_S[state-1] += 4;  // fix results to display shape
+		moving = false;     // abort moving
+	}
+
+	if(mouseY > 550 && mouseY < 582 && mouseX > 44 && mouseX < 156){   // about 
+		about();
+		return;
+	}
+	if(showAbout) return;  // don't process anything but the about button when showing about
+	
+	if(mouseY > 550 && mouseY < 582){	// bottom buttons
+			 if(mouseX > 194 && mouseX < 306) solution();
+		else if(mouseX > 344 && mouseX < 456) start();
+		else if(mouseX > 494 && mouseX < 606) restart();
+		else if(mouseX > 644 && mouseX < 756) annot();
+	}else if(mouseY > 409 && mouseY < 441){	// diff select buttons
+			 if(mouseX > 534 && mouseX < 566) diffSelect = 0;
+		else if(mouseX > 609 && mouseX < 641) diffSelect = 1;
+		else if(mouseX > 684 && mouseX < 716) diffSelect = 2;
+
+	}else if(mouseY > 100 && mouseY < 400 && mouseX > 75 && mouseX < 375){   // main field
+		i = Math.floor((mouseX-75)/75);
+		j = Math.floor((mouseY-100)/75);
+		n = i*4+j;
+		if(field_S[n] < 0) return;  // no shape present
+//		console.log('i= '+i+' j= '+j+' n= '+n);
+//  add annotation numbers to shapes in the main field
+		if(annotate){	// add numbers to the field shapes
+			if(field_H[n] < 0 && iHint > 0){  // add number to empty field_H
+				field_H[n] = iHint;
+				iHint--;
+			}else if(field_H[n] > 0){		// empty all fields below field_H
+				j = field_H[n];  // from this value on
+				for(i=0;i<16;i++){
+					if(field_S[i] >= 0 && field_H[i] <= j) field_H[i] = -1;  // erase this hint
+				}
+				iHint = j;
+			}
+//	select shapes to move from main field to the results line
+		}else{
+			if(state == 0 || field_S[n] == results_S[state-1] || field_C[n] == results_C[state-1]){
+				if(n >= 12 || field_S[n+4] < 0){	// right column or empty to right
+					results_S[state] = field_S[n]-4;  // hold displaying for move
+					results_C[state] = field_C[n];
+					results_H[state] = field_H[n];
+					results_F[state] = n;
+					field_S[n] -= 4;
+					state++;
+					
+					i = Math.floor(n/4);
+					j = Math.floor(n%4);
+					moveX = i*75+112;
+					moveY = j*75+137;
+					moveS = field_S[n] + 4;
+					moveC = field_C[n];
+					moveF = n;
+					moving = true;
+				}
+			}
+		}
+//  select last item in results and restore to main field
+	}else if(state > 0 && state < 16 && mouseY > 460 && mouseY < 490 && 
+	mouseX > state*25+35 && mouseX < state*25+65){
+		n = results_F[state-1];
+		field_S[n] = results_S[state-1];
+		field_C[n] = results_C[state-1];
+		field_H[n] = results_H[state-1];
+		results_S[state-1] = -1;
+		state--;
+	}else if(mouseY < 100 && mouseX > 700){  // hidden start button for debug
+		initField();
+	}
+	drawAll();
+}
+
+function about(){
+	if(!showAbout){
+		showAbout = true;
+		drawAll();
+		colorRect(72,97,380,310,ABFIELD);  // field
+		ctx.font = 'italic 20px Verdana';
+		ctx.textAlign = 'left';
+		ctx.textBaseline = 'top';
+		ctx.fillStyle = 'Blue';
+		ctx.fillText('About Shapes...',80,110);
+		
+		ctx.font = '12px Verdana';
+		ctx.fillText('Click or Tap a symbol in the main field to slide it to',80,165);
+		ctx.fillText('the exit. Symbols must be removed so that consecutive',80,180);
+		ctx.fillText('symbols match either the previous color or shape.',80,195);
+
+		ctx.fillText('Click or Tap a small symbol at the bottom to restore it',80,225);
+		ctx.fillText('to the main field.',80,240);
+
+		ctx.fillText('Toggle "Annotate" to add numbers to symbols in the',80,270);
+		ctx.fillText('main field to help solve the puzzle.',80,285);
+
+		ctx.fillText('Every puzzle has at least one solution!',80,315);
+		ctx.fillText('Difficulty is the number of unique solutions.',80,330);
+
+		ctx.fillText('Written for HTML Canvas: May 2020 by Pete Loeppert',80,380);
+	}else{
+		showAbout = false;
+		drawAll();
+	}
+}
+
+function solution(){
+	showSol = !showSol;
+}
+
+function start(){
+	var i,j,n,m
+	var poss = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+	console.clear();
+	
+	initDB();
+	drawAll();
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'top';
+	ctx.fillStyle = 'Blue';
+	ctx.font = 'italic 50px Comic Sans MS';
+	ctx.fillText('Thinking...',260,260);
+
+	do{
+		do{
+			for(n=0;n<16;n++){	// setup field
+				field_S[n] = Math.floor(n%4);
+				field_C[n] = Math.floor(n/4);
+			}
+
+			for(state = 0; state < 16; state++){
+				m=0;
+				j=0;
+				for(i=0;i<16;i++){  // redo possibilities list
+					if(field_S[i] >= 0) j++;
+					if(state == 0 || field_S[i] == sol_S[state-1] || field_C[i] == sol_C[state-1]){
+						poss[m] = i;
+						m++;
+					}
+				}
+				if(m == 0) break;
+				n = Math.floor(Math.random()*m);	// pick from remaining possibilities
+//console.log('state= '+state+' m= '+m+' n= '+n+' poss[n]= '+poss[n]+' j= '+j);
+				sol_S[state] = field_S[poss[n]];
+				sol_C[state] = field_C[poss[n]];
+				field_S[poss[n]] = -1;
+				field_C[poss[n]] = -1;
+			}
+		} while(m == 0);
+		poss = [12,13,14,15];
+//	console.log('poss= '+poss);
+		for(state=0; state<16; state++){
+			do{
+				n = Math.floor(Math.random()*4);
+			} while(poss[n] < 0);
+//console.log('state= '+state+' n= '+n+' poss[n]= '+poss[n]);		
+			field_S[poss[n]] = sol_S[state];
+			field_C[poss[n]] = sol_C[state];
+			sol_F[state] = poss[n];
+			poss[n] -= 4;
+		}
+		state = 0;
+		iHint = 16;
+		difficulty = 0;
+		findDiff();
+//console.log('difficulty= '+difficulty+' Lo= '+diffLo[diffSelect]+' Hi= '+diffHi[diffSelect]);		
+	}while(difficulty < diffLo[diffSelect] || difficulty > diffHi[diffSelect]);
+//console.log('Diff done...');	
+	showSol = false;
+	then = new Date();  // current time
+}
+
+function restart(){
+	var i,n;
+
+	if(state >= 16) return;
+	for(i=0;i<16;i++){
+		n = sol_F[i];				// restore the field
+		field_S[n] = sol_S[i];
+		field_C[n] = sol_C[i];
+		field_H[n] = sol_H[i];
+		
+		results_S[i] = -1;			// clear the results
+	}
+	state = 0;
+	iHint = 16;
+	annotate = false;
+	showSol = false;
+}
+
+function annot(){
+	if(state == 16) return;
+	annotate = !annotate;
+}
+
+function updateAll(){
+var a,b;
+	if(!moving) return;
+	moveAll();
+	drawAll();
+//	cursor();
+}
+
+function moveAll(){
+	if(moveX <412){
+		moveX += speed;
+	}else if(moveY < 437){
+		moveY += speed;
+	}
+	if(moveY >= 437){
+		results_S[state-1] += 4;  // display moveing shape in results
+		moving = false;
+	}
+//console.log('moveX= '+moveX+' moveY= '+moveY+' n= '+moveF+' S= '+moveS+' C= '+moveC);	
+}
+
+function drawAll(){
+	colorRect(0, 0, canvas.width,canvas.height,BKGND);
+	openRect(5, 5, canvas.width-10, canvas.height-10, 3, BLUE);
+	drawField();
+//	drawGrid();
+
+	paintShapes();
+	
+	drawButtons();
+	addDifficulty();
+	addTimer();
+}
+
+function cursor(){
+	ctx.font = '10px Verdana';
+	ctx.textAlign = 'left';
+	ctx.textBaseline = 'bottom';
+	ctx.fillStyle = BLUE;
+	a = Math.floor((mouseX+12.5)/25)*25;
+	b = Math.floor((mouseY+12.5)/25)*25;
+	ctx.fillText(a+" : "+b,a,b);
+	ctx.lineWidth = 2;
+	ctx.strokeStyle = BLUE;
+	ctx.beginPath();
+	ctx.moveTo(a-10,b);
+	ctx.lineTo(a+10,b);
+	ctx.moveTo(a,b-10);
+	ctx.lineTo(a,b+10);
+	ctx.stroke();
+}
+
+function drawField(){
+	ctx.lineWidth = 3;
+	ctx.strokeStyle = BLUE;
+	ctx.beginPath();
+	ctx.moveTo(375,400);
+	ctx.lineTo(75,400);
+	ctx.lineTo(75,100);
+	ctx.lineTo(450,100);
+	ctx.lineTo(450,400);
+	ctx.moveTo(75,175);
+	ctx.lineTo(375,175);
+	ctx.moveTo(75,250);
+	ctx.lineTo(375,250);
+	ctx.moveTo(75,325);
+	ctx.lineTo(375,325);
+	ctx.stroke();
+}
+
+ function drawGrid(){
+	var i;
+	ctx.lineWidth = 1;
+	ctx.strokeStyle = GREEN;
+	ctx.beginPath();
+	for(i=1;i<24;i++){
+		ctx.moveTo(0,i*25);
+		ctx.lineTo(800,i*25);
+	}
+	for(i=1;i<32;i++){
+		ctx.moveTo(i*25,0);
+		ctx.lineTo(i*25,600);
+	}
+	ctx.stroke();
+ }
+ 
+function drawShape(x, y, size, shape ,color){
+	switch(shape){
+		case 0:
+			colorCircle(x,y,size,color,true);
+			break;
+		case 1:
+			colorSquare(x,y,size,color,true);
+			break;
+		case 2:
+			colorTriangle(x,y,size,color,true);
+			break;
+		case 3:
+			colorDiamond(x,y,size,color,true);
+			break;
+	}
+}
+
+function colorRect(leftTopX,leftTopY,width,height,color){
+	ctx.fillStyle = color;
+	ctx.fillRect(leftTopX, leftTopY, width,height);
+	ctx.fill();
+}
+
+function colorSquare(centerX,centerY,size,color, outline){
+	ctx.fillStyle = color;
+	ctx.fillRect(centerX-size, centerY-size, size*2,size*2);
+	if(outline) openRect(centerX-size,centerY-size, size*2,size*2, 1, HIGHLIGHT);
+}
+
+function colorCircle(centerX,centerY,radius,color, outline){
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.arc(centerX, centerY, radius, 0, Math.PI*2, true);
+	ctx.fill();
+	if(outline){
+		ctx.strokeStyle = HIGHLIGHT;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.arc(centerX, centerY, radius, 0, Math.PI*2, true);
+		ctx.stroke();
+	}
+}
+
+function colorDiamond(centerX, centerY, size, color, outline){
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.moveTo(centerX, centerY+size);
+	ctx.lineTo(centerX+size, centerY);
+	ctx.lineTo(centerX, centerY-size);
+	ctx.lineTo(centerX-size, centerY);
+	ctx.lineTo(centerX, centerY+size);
+	ctx.fill();
+	if(outline){
+		ctx.strokeStyle = HIGHLIGHT;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(centerX, centerY+size);
+		ctx.lineTo(centerX+size, centerY);
+		ctx.lineTo(centerX, centerY-size);
+		ctx.lineTo(centerX-size, centerY);
+		ctx.lineTo(centerX, centerY+size);
+		ctx.stroke();
+	}
+}
+
+function colorTriangle(centerX, centerY, size, color, outline){
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.moveTo(centerX, centerY-size);
+	ctx.lineTo(centerX+size, centerY+size);
+	ctx.lineTo(centerX-size, centerY+size);
+	ctx.lineTo(centerX, centerY-size);
+	ctx.fill();
+	if(outline){
+		ctx.strokeStyle = HIGHLIGHT;
+		ctx.lineWidth = 1;
+		ctx.beginPath();
+		ctx.moveTo(centerX, centerY-size);
+		ctx.lineTo(centerX+size, centerY+size);
+		ctx.lineTo(centerX-size, centerY+size);
+		ctx.lineTo(centerX, centerY-size);
+		ctx.stroke();
+	}
+}
+
+function colorText(showWords, textX,textY, fillColor){
+	ctx.fillStyle = fillColor;
+	ctx.fillText(showWords, textX,textY);
+}
+
+function openRect(X, Y, W, H, linewidth, color){
+	ctx.beginPath();
+	ctx.rect(X,Y,W,H);
+	ctx.lineWidth = linewidth;
+	
+	ctx.strokeStyle = color;
+	ctx.stroke();
+}
+
+function drawButtons(){
+	var i;
+
+	ctx.font = 'italic 75px Comic Sans MS';		// Title
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'top';
+	ctx.fillStyle = 'Blue';
+	ctx.shadowOffsetX = 4;
+	ctx.shadowOffsetY = 4;
+	ctx.shadowColor = 'black';
+	ctx.shadowBlur = 4;
+	ctx.fillText('Shapes...',300,10);
+	ctx.shadowOffsetX = 0;
+	ctx.shadowOffsetY = 0;
+	ctx.shadowBlur = 0;
+	
+	PBlist();	// get possible list
+	if(state == 16){			// Winner!
+		ctx.fillText('Winner!',225,255);
+	}else if(nPB == 0){
+		ctx.font = 'italic 50px Comic Sans MS';
+		ctx.fillText('Try Again...',275,410);
+	}
+	
+	ctx.lineWidth = '4';
+	ctx.strokeStyle = 'BLUE';
+	ctx.fillStyle = 'YELLOW';
+
+	for(i=0;i<5;i++){
+		ctx.beginPath();		// setup buttons
+		ctx.moveTo(60+i*150,550);
+		ctx.lineTo(140+i*150,550);
+		ctx.arc(140+i*150,566,16,3/2*Math.PI,1/2*Math.PI,false);
+		ctx.lineTo(60+i*150,582);
+		ctx.arc(60+i*150,566,16,1/2*Math.PI,3/2*Math.PI,false);
+		ctx.stroke();
+		if(i == 0 && showAbout) ctx.fill();
+		if(i == 1 && showSol) ctx.fill();
+		if(i == 4 && annotate) ctx.fill();
+	}
+
+	ctx.font = 'italic 20px Verdana';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'top';
+	ctx.fillStyle = 'Blue';
+	ctx.shadowOffsetX = 0;
+	ctx.shadowOffsetY = 0;
+	ctx.shadowColor = 'black';
+	ctx.shadowBlur = 0;
+	ctx.fillText('About',100,555);
+	ctx.fillText('Solution',250,555);
+	ctx.fillText('Start',400,555);
+	ctx.fillText('Restart',550,555);
+	ctx.fillText('Annotate',700,555);
+	
+}
+
+function addDifficulty(){	
+	ctx.fillStyle = YELLOW;
+	ctx.beginPath();							// fill selected
+	ctx.arc(550+diffSelect*75,425,16,0,Math.PI*2,false);
+	ctx.fill();
+	
+	ctx.beginPath();							// hard
+	ctx.arc(550,425,16,0,Math.PI*2,false);
+	ctx.stroke();
+	ctx.beginPath();							// medium
+	ctx.arc(625,425,16,0,Math.PI*2,false);
+	ctx.stroke();
+	ctx.beginPath();							// easy
+	ctx.arc(700,425,16,0,Math.PI*2,false);
+	ctx.stroke();
+	
+	ctx.beginPath();							// dummy to close fill potential
+	ctx.stroke();
+	
+	ctx.font = 'italic 15px Verdana';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'top';
+	ctx.fillStyle = 'Blue';
+	ctx.fillText('Hard',550,380);
+	ctx.fillText('Medium',625,380);
+	ctx.fillText('Easy',700,380);
+	ctx.fillText('1-9',550,450);
+	ctx.fillText('10-50',625,450);
+	ctx.fillText('51+',700,450);
+	
+	ctx.font = 'italic 20px Verdana';
+	ctx.fillText('Difficulty',625,300);
+	ctx.font = 'italic 15px Verdana';
+	if(difficulty < 0){
+		ctx.fillText('---',625,325);
+	}else{
+		ctx.fillText(difficulty,625,325);
+	}
+}
+
+function addTimer(){
+	var s,m,h,T;
+	var sec,min;
+
+	ctx.fillStyle = BKGND;
+	ctx.fillRect(575,120,100,60);	// background
+	
+	if(then != 0 && state != 16) now = new Date();  // current time
+	h = Math.floor((now - then)/1000/3600);
+	m = Math.floor((now - then)/1000/60%60);
+	s = Math.floor((now - then)/1000%60);
+
+	if(s<10) sec = ':0' + s;
+	else sec = ':' + s;
+	if(m<10) min = ':0' + m;
+	else min = ':' + m;
+	T = h + min + sec;
+
+	ctx.font = 'italic 20px Verdana';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'top';
+	ctx.fillStyle = 'Blue';
+	ctx.fillText('Time',625,125);
+	if(then == 0) ctx.fillText('0:00:00',625,150);
+	else ctx.fillText(T,625,150);
+}
+
+function paintShapes(){
+	var i,j,n;
+
+	ctx.font = 'italic 15px Verdana';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'top';
+
+	for(n=0;n<16;n++){
+		i = Math.floor(n/4);	// col
+		j = Math.floor(n%4);	// row
+		drawShape(i*75+112,j*75+137,25,field_S[n],colors[field_C[n]]);  // main field
+		if(field_S[n] >= 0 && field_H[n] > 0){ // no shape or no hint
+			if(field_C[n] == 0 || field_C[n] == 2){
+				ctx.fillStyle = WHITE;
+			}else{
+				ctx.fillStyle = BLUE;
+			}
+			ctx.fillText(field_H[n],i*75+112,j*75+133);
+		}
+
+		if(showSol){
+			drawShape(n*25+75,500,8,sol_S[n],colors[sol_C[n]]);		// solution
+		}
+		if(results_S[n] >= 0){
+			drawShape(n*25+75,475,8,results_S[n],colors[results_C[n]]);	 // results
+		}
+	}
+	if(moving){		// add moving shape
+		drawShape(moveX,moveY,25,moveS,colors[moveC]);
+//		console.log('moving shape X= '+moveX+' Y= '+moveY);
+	}
+} 
+
+function initDB(){
+	var i;
+	
+	for(i=0;i<16;i++){
+	field_S[i] = -1;
+	field_C[i] = -1;
+	field_H[i] = -1;
+	results_S[i] = -1;
+	results_C[i] = -1;
+	results_F[i] = -1;
+	results_H[i] = -1;
+	sol_S[i] = -1;
+	sol_C[i] = -1;
+	sol_F[i] = -1;
+	sol_H[i] = -1;
+	}
+	state = 0;
+	iHints = 16;
+	annotate = false;
+}
+
+function initField(){
+	var i;
+	
+	for(i=0;i<16;i++){
+	field_S[i] = Math.floor(i%4);
+	field_C[i] = Math.floor(i/4);
+	field_H[i] = -1;
+	results_S[i] = -1;
+	results_C[i] = -1;
+	results_F[i] = -1;
+	results_H[i] = -1;
+	sol_S[i] = Math.floor(i%4);
+	sol_C[i] = Math.floor(i/4);
+	sol_F[i] = i;
+	sol_H[i] = -1;
+	}
+	state = 0;
+}
+
+function PBlist(){
+	var i,j,n,S;
+
+	if(state == 0){		// initialized or empty field, delay for moving
+		nPB = 4;
+		return;
+	}
+	nPB = 0;
+	S = results_S[state-1];
+	if(moving) S += 4;			// look ahead while moving
+	for(i=0;i<4;i++){
+		n = 12+i;		// righthand col
+		if(field_S[n] >= 0 && 
+			(field_S[n] == S || field_C[n] == results_C[state-1])) nPB++;
+		for(j=2;j>=0;j--){
+			n = j*4+i;
+			if((field_S[n] >= 0 && field_S[n+4] < 0) &&
+				(field_S[n] == S || field_C[n] == results_C[state-1])) nPB++;
+		}
+	}
+} 
+
+function findDiff(){
+	var i,j,n;
+//console.log('Entering findDiff ====>>>>  state= '+state+' diff= '+difficulty);
+	for(i=0;i<4;i++){  // for each row, find the next shape
+		for(j=12;j>=0;j-=4){  // go left across each row
+			n = j+i;          // field index
+//if(state==0){
+//console.log('state= '+state+' d= '+difficulty+' i= '+i+' j= '+j+' n= '+n+' field_S:C= '+field_S[n]+':'+field_C[n]+' results_S:C = X:X');
+//}else{
+//console.log('state= '+state+' d= '+difficulty+' i= '+i+' j= '+j+' n= '+n+' field_S:C= '+field_S[n]+':'+field_C[n]+' results_S:C = '+results_S[state-1]+':'+results_C[state-1]);
+//}
+			if(field_S[n] < 0) continue; // skip
+			if(state == 0 || field_S[n] == results_S[state-1] || field_C[n] == results_C[state-1]){
+				if(state == 15){
+					difficulty++;	// found a solution!
+//console.log('Diff= '+difficulty+' results: '+results_F);
+				}else{              // contiue looking
+					results_S[state] = field_S[n];	
+					results_C[state] = field_C[n];
+					results_F[state] = n;
+					field_S[n] -= 4;	
+					state++;
+					findDiff();			// recursive call
+					state--;			// restore field shapes
+					field_S[n] = results_S[state];
+					field_C[n] = results_C[state];
+					results_S[state] = -1;
+				}
+			break;
+			}else{
+				break;
+			}
+		}
+	}
+}
+</script>
+</body>
+</html>
+

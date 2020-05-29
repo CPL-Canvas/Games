@@ -1,0 +1,261 @@
+<html>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+var canvas;
+var ctx;
+var ballR = 10;
+var	ballX;
+var ballY;
+
+var playerScore = 0;
+var computerScore = 0;
+var winningScore = 7;
+var win;			// indicates which player won
+var volleys = 0;
+
+var incX = 0;
+var incY = 0;
+const INITIAL_SPEED = 10;	// initial speed, gets incremented each hit
+const CPINC = 6;			// initial computer paddle speed, gets incremented each hit
+var speed = INITIAL_SPEED;
+var paddleCinc = CPINC;
+var paddlePY = 250;
+var paddleCY = 450;
+const PADDLE_HEIGHT = 100;
+var mode = 0;	// 0=serve 1=play 2=win
+var player = true;  // true=player   false=computer
+
+function calculateMousePos(evt){
+	var rect = canvas.getBoundingClientRect();
+	var root = document.documentElement;
+	var mouseX = evt.clientX - rect.left - root.scrollLeft;
+	var mouseY = evt.clientY - rect.top - root.scrollTop;
+	return{
+		x:mouseX,
+		y:mouseY
+	};
+}
+
+window.onload = function(){
+	canvas = document.getElementById('gameCanvas');
+	ctx = canvas.getContext('2d');
+	
+	incX = 0;
+	incY = 0;
+	ballX = canvas.width-82-ballR;
+	ballY = paddlePY;	// initialize for serve
+ 
+	var framesPerSecond = 30;
+	timer = setInterval(function(){
+			drawEverything();
+			moveEverything();
+		},1000/framesPerSecond);
+
+	canvas.addEventListener('mousemove',
+		function(evt){
+			var mousePos = calculateMousePos(evt);
+			paddlePY = mousePos.y;
+//			paddleCY = mousePos.y;  // freeze computer paddle to mouse
+		});
+		
+	canvas.addEventListener('click',
+		function(){
+			if(mode == 1) return;
+			if(mode == 3){
+				playerScore = 0;
+				computerScore = 0;
+			}
+			speed = INITIAL_SPEED;
+			paddleCinc = CPINC;
+			volleys = 0;
+			console.log('speed = ',speed, 'CPinc = ',paddleCinc);
+			incX = -speed;
+			incY = incX * (Math.random() - 0.5);  // random y speed on serve
+			mode = 1;  // serve the ball
+		});
+			
+}
+
+function moveEverything(){
+	var dy;
+	
+	if(paddleCY > ballY + 35){		// move computer paddle
+		paddleCY -= paddleCinc;
+	}else if(paddleCY < ballY - 35){
+		paddleCY += paddleCinc;
+	}
+	
+	if(mode != 1){  // !play mode, freeze ball to paddle
+		if(player){
+			ballY = paddlePY;
+		}else{
+			ballY = paddleCY;
+		}
+		return;
+	}
+	
+	ballX += incX;  // move the ball
+	ballY += incY;
+	
+// right wall hit
+	if(ballX >= canvas.width-20-ballR){
+		incX = incY = 0;
+		ballX = canvas.width-82-ballR;
+		ballY = paddlePY;
+		mode = 0;   // change to serve mode
+		if(!player){		// point scored
+			playerScore++;
+//			console.log('player = ',playerScore);
+			if(playerScore >= winningScore){
+//			console.log('winner');
+			mode = 3;  // win mode
+			win = true;  // player wins
+			}
+		player = true;  // player severs next
+		}else{
+			computerScore++;
+			if(computerScore >= winningScore){
+			mode = 3;  // win mode
+			win = false;	// computer wins
+			}
+		player = false;  // computer serves next
+		}
+		return;
+	}
+// test paddle hit
+	if(ballX > canvas.width-80-ballR){  // paddle hit?
+		if(player){
+			dy = ballY-paddlePY;
+		}else{
+			dy = ballY-paddleCY;
+		}
+		if(dy <= PADDLE_HEIGHT/2 &&
+			dy >= -PADDLE_HEIGHT/2){
+			speed++;	// increment speed to make it progressively harder
+			paddleCinc++;// increment computer paddle speed
+			volleys++;
+			console.log('speed = ',speed, 'CPinc = ',paddleCinc);
+			incX = -incX;
+			incY = speed * dy/PADDLE_HEIGHT*2;
+		}
+	}
+// test left wall hit	
+	if(ballX <= 20 + ballR){
+		incX = -incX;
+		ballX = 20 + ballR + incX;
+		player = !player;
+	} 
+
+//  reflect off top and bottom walls
+	if(ballY >= canvas.height-20-ballR || ballY <= 20+ballR){
+		incY = -incY;
+	}
+}
+
+function drawEverything() {
+	ctx.fillStyle = '#FFEBCD';	// background
+	ctx.fillRect(0,0,canvas.width,canvas.height);
+// draw border
+	ctx.beginPath();
+	ctx.rect(20,20,canvas.width-40,canvas.height-40);
+	ctx.lineWidth = '3';
+	ctx.strokeStyle = 'black';
+	ctx.stroke();
+// title
+	ctx.font = '30px Verdana';
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'top';
+	ctx.fillStyle = 'Blue';
+	ctx.fillText('PaddleBall Game',canvas.width/2,30);
+// add "serve" if mode = 0
+	if(mode == 0){  // serve mode
+		ctx.font = '30px Verdana';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'top';
+		ctx.fillStyle = 'Blue';
+		ctx.fillText('Click (tap) to Serve',canvas.width/2,100);
+//		ctx.beginPath();
+//		ctx.strokeStyle = 'blue';
+//		ctx.rect(canvas.width/2-50,90,100,50);
+//		ctx.stroke();
+	}else if(mode == 3){  // win mode
+		ctx.font = '30px Verdana';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'top';
+		ctx.fillStyle = 'Blue';
+		if(win){
+			ctx.fillStyle = 'Red';
+			ctx.fillText('Player Wins!',canvas.width/2,100);
+		}else{
+			ctx.fillStyle = 'Red';
+			ctx.fillText('Computer Wins!',canvas.width/2,100);
+		}
+		ctx.fillStyle = 'Blue';
+		ctx.fillText('Click (tap) to Start again',canvas.width/2,150);
+	}
+// add score info
+	ctx.font = '20px Verdana';
+	ctx.fillStyle = 'Blue';
+	ctx.fillText('Player Score',180,30);
+	ctx.fillText(playerScore,180,50);
+	ctx.fillText('Computer Score',canvas.width-180,30);
+	ctx.fillText(computerScore,canvas.width-180,50);
+	ctx.fillText('Volleys',60,30);
+	ctx.fillText(volleys,60,50);
+
+	drawBall();
+	drawPlayerPaddle();
+	drawComputerPaddle();
+}
+
+function drawBall(){
+	ctx.beginPath();
+	ctx.arc(ballX,ballY,ballR,0,2*Math.PI);
+	ctx.lineWidth = '5';
+	ctx.strokeStyle = 'Green';
+	ctx.stroke();
+	ctx.fillStyle = 'GreenYellow';
+	ctx.fill();
+}
+
+function drawPlayerPaddle(){
+	if(paddlePY < 25 + PADDLE_HEIGHT/2){
+		paddlePY = 25 + PADDLE_HEIGHT/2;
+	}else if(paddlePY > canvas.height - 25 - PADDLE_HEIGHT/2){
+		paddlePY = canvas.height - 25 - PADDLE_HEIGHT/2;
+	}
+	
+	ctx.beginPath();
+	ctx.lineWidth = '5';
+	ctx.strokeStyle = 'red';
+	if(player){
+		ctx.rect(canvas.width-80,paddlePY-PADDLE_HEIGHT/2,20,PADDLE_HEIGHT);
+	}else{
+		ctx.rect(canvas.width-50,paddlePY-PADDLE_HEIGHT/2,20,PADDLE_HEIGHT);
+	}
+	ctx.stroke();
+	ctx.fillStyle = 'yellow';
+	ctx.fill();
+}
+
+function drawComputerPaddle(){
+	if(paddleCY < 25 + PADDLE_HEIGHT/2){
+		paddleCY = 25 + PADDLE_HEIGHT/2;
+	}else if(paddleCY > canvas.height - 25 - PADDLE_HEIGHT/2){
+		paddleCY = canvas.height - 25 - PADDLE_HEIGHT/2;
+	}
+	
+	ctx.beginPath();
+	ctx.lineWidth = '5';
+	ctx.strokeStyle = 'chocolate';
+	if(!player){
+		ctx.rect(canvas.width-80,paddleCY-PADDLE_HEIGHT/2,20,PADDLE_HEIGHT);
+	}else{
+		ctx.rect(canvas.width-50,paddleCY-PADDLE_HEIGHT/2,20,PADDLE_HEIGHT);
+	}
+	ctx.stroke();
+	ctx.fillStyle = 'gold';
+	ctx.fill();
+}
+</script>
+</html>
