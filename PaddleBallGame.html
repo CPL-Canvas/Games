@@ -78,12 +78,19 @@ window.onload = function(){
 
 function moveEverything(){
 	var dy;
-	
-	if(paddleCY > ballY + 35){		// move computer paddle
-		paddleCY -= paddleCinc;
-	}else if(paddleCY < ballY - 35){
-		paddleCY += paddleCinc;
-	}
+	if(player){
+		if(paddleCY > 320){		// move computer paddle
+			paddleCY -= paddleCinc;
+		}else if(paddleCY < 280){
+			paddleCY += paddleCinc;
+		}
+	}else{
+		if(paddleCY > ballY + 35){		// move computer paddle
+			paddleCY -= paddleCinc;
+		}else if(paddleCY < ballY - 35){
+			paddleCY += paddleCinc;
+		}
+	}	
 	
 	if(mode != 1){  // !play mode, freeze ball to paddle
 		if(player){
