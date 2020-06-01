@@ -7,7 +7,7 @@ var ctx;
 var bkgnd = '#FFEBCD';	// background color
 var ltred = '#FFC0C0';
 var ltblue = '#C0C0FF';
-var setup = true;
+var setup = -1;		// only input or random allowed
 var timer;
 
 var gridOffset = {x:30,y:30};	// main grid
@@ -92,17 +92,28 @@ function calculateMousePos(evt){
 function processClick(){
 	if(mousePos.x > gridOffset.x+9*gridInc.x){  // right side of grid
 		if(mousePos.x >= 600 && mousePos.x <= 760 &&
-			mousePos.y >= 100 && mousePos.y <= 140){		// start/ complete button hit!
-			setup = !setup;
-			hit = lhit = 0;
-			if(!setup){
+			mousePos.y >= 100 && mousePos.y <= 140){		// setup complete
+			if(setup == 1){			// in setup
+				setup = 0;			// goto complete(run), start timer
+				hit = lhit = 0;
 				then = new Date(); // get current time in ms
 				freeze = false;
+			}else{						// then setup < 1
+				if(mousePos.x >= 600 && mousePos.x <= 670 &&	//   input 
+					mousePos.y >= 100 && mousePos.y <= 140){
+					setup = 1;			// goto setup
+					initialize();
+					now = then = 0;
+					freeze = true;
+				}else if(mousePos.x >= 690 && mousePos.x <= 760 &&	// random
+					mousePos.y >= 100 && mousePos.y <= 140){
+					generate();
+					setup = 0;			// goto complete(run), start timer
+					hit = lhit = 0;
+					now = then = 0;
+					then = new Date(); // get current time in ms
+					freeze = false;
 				}
-			if(setup){
-				initialize();
-				now = then = 0;
-				freeze = true;
 			}
 		}else if(mousePos.x >= 600 && mousePos.x <= 670 &&
 			mousePos.y >= 200 && mousePos.y <= 240){		// Save
@@ -158,8 +169,8 @@ function processClick(){
 		if(i >= 0 && i <= 8 && j >= 0 && j <= 8){
 			lhit = hit;
 			hit = (i+j*9+1);
-console.log('lhit= ',lhit,' hit= ',hit);			
-			if(setup){
+//console.log('lhit= ',lhit,' hit= ',hit);			
+			if(setup == 1){		// setup mode
 				if(lhit == 0){
 					grid[hit] = 0;			// cancel grid value
 					hit = 0;  				// cancel highlight
@@ -170,7 +181,7 @@ console.log('lhit= ',lhit,' hit= ',hit);
 					grid[hit] = 0;			// cancel set
 					hit = lhit = 0;			// cancel hightlight
 				}
-			}else{					// not setup
+			}else if(setup == 0){					// run/play mode: not -1
 				if(lhit < 0){
 					if(grid[hit] >= 0){
 						grid[hit] = -lhit;		// grid value for game play or cancel
@@ -179,7 +190,7 @@ console.log('lhit= ',lhit,' hit= ',hit);
 				}else if(lhit == 0){
 					if(grid[hit] > 0){
 						grid[hit] = 0;			// cancel grid number
-//						hit = 0;				// cancel highlight
+						hit = 0;				// cancel highlight
 					}
 				}else if(lhit == hit) hit = 0;	// cancel hit
 			}
@@ -202,7 +213,7 @@ function checkWin(){
 	var sum;
 	var a,b;
 	
-	if(setup) return;
+	if(setup != 0) return;	//return if in setup(1) or initial(-1)
 	
 	for(j=0;j<9;j++){
 		for(i=0;i<9;i++){
@@ -249,7 +260,7 @@ function checkWin(){
 			ctx.fillText('Error!',400,275);
 			freeze = false;
 		}
-	}else if(!setup) freeze = false;
+	}else if(setup == 0) freeze = false;
 }
 
 function drawGrid(){
@@ -406,13 +417,28 @@ function drawButtons(){
 //	ctx.shadowOffsetY = 2;
 //	ctx.shadowColor = 'black';
 //	ctx.shadowBlur = 10;
+	if(setup < 1){				// either -1 or 0
+		ctx.moveTo(620,100);	// input button
+		ctx.lineTo(650,100);
+		ctx.arc(650,120,20,3/2*Math.PI,1/2*Math.PI,false);
+		ctx.lineTo(620,140);
+		ctx.arc(620,120,20,1/2*Math.PI,3/2*Math.PI,false);
+		ctx.stroke();
 	
-	ctx.moveTo(620,100);
-	ctx.lineTo(740,100);
-	ctx.arc(740,120,20,3/2*Math.PI,1/2*Math.PI,false);
-	ctx.lineTo(620,140);
-	ctx.arc(620,120,20,1/2*Math.PI,3/2*Math.PI,false);
-	ctx.stroke();
+		ctx.moveTo(710,100);	// random button
+		ctx.lineTo(740,100);
+		ctx.arc(740,120,20,3/2*Math.PI,1/2*Math.PI,false);
+		ctx.lineTo(710,140);
+		ctx.arc(710,120,20,1/2*Math.PI,3/2*Math.PI,false);
+		ctx.stroke();
+	}else{
+		ctx.moveTo(620,100);	// setup complete
+		ctx.lineTo(740,100);
+		ctx.arc(740,120,20,3/2*Math.PI,1/2*Math.PI,false);
+		ctx.lineTo(620,140);
+		ctx.arc(620,120,20,1/2*Math.PI,3/2*Math.PI,false);
+		ctx.stroke();
+	}
 
 	ctx.moveTo(620,200);	// save button
 	ctx.lineTo(650,200);
@@ -457,10 +483,11 @@ function drawButtons(){
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'top';
 	ctx.fillStyle = 'blue';
-	if(setup){
+	if(setup == 1){
 		ctx.fillText('Setup Complete',680,112);
 	}else{
-		ctx.fillText('New Puzzle',680,112);
+		ctx.fillText('Input',635,112);
+		ctx.fillText('Random',725,112);
 	}
 
 	ctx.fillText('Timer',680,150);
@@ -496,8 +523,6 @@ function addTimer(){
 	var s,m,h,T;
 	var sec,min;
 
-//	if(!freeze){  // timer started
-//	}
 	ctx.fillStyle = bkgnd;
 	ctx.fillRect(640,167,80,20);	// background
 	
@@ -542,105 +567,79 @@ function hints(){
 		}
 	}
 }
+
+function generate(){
+	var i,j,k,n;
+	var swap0, swap1, swap2, swap3;
+
+	for(i=0;i<9;i++){
+		for(j=0;j<9;j++){
+			k = i*9+j+1
+			grid[k] = Math.floor((i+3*j+Math.floor(j/3))%9)+1;
+		}
+	}	
+//	grid[81] = 0;		// to avoid Winner or Error message
+
+	for(n=0;n<1000;n++){	// number of swaps
+		swap0 = Math.floor(Math.random()*4);
+		swap1 = Math.floor(Math.random()*3);
+		swap2 = Math.floor(Math.random()*3);
+		while((swap3 = Math.floor(Math.random()*3)) == swap2);
+		switch(swap0){
+		case 0:	// swap cols in block
+			for(j=0;j<9;j++){
+				k = grid[(swap1*3+swap2)*9+j+1];
+				grid[(swap1*3+swap2)*9+j+1] = grid[(swap1*3+swap3)*9+j+1];
+				grid[(swap1*3+swap3)*9+j+1] = k;
+			}
+			break;
+		case 1:	// swap rows in block
+			for(i=0;i<9;i++){
+				k = grid[i*9+(swap1*3+swap2)+1];
+				grid[i*9+(swap1*3+swap2)+1] = grid[i*9+(swap1*3+swap3)+1];
+				grid[i*9+(swap1*3+swap3)+1] = k;
+			}
+			break;
+		case 2:	// swap blocks in cols
+			for(i=0;i<3;i++){
+				for(j=0;j<9;j++){
+				k = grid[(swap2*3+i)*9+j+1];
+				grid[(swap2*3+i)*9+j+1] = grid[(swap3*3+i)*9+j+1];
+				grid[(swap3*3+i)*9+j+1] = k;
+				}
+			}
+			break;
+		case 3:	// swap block in rows
+			for(i=0;i<9;i++){
+				for(j=0;j<3;j++){
+				k = grid[i*9+(swap2*3+j)+1];
+				grid[i*9+(swap2*3+j)+1] = grid[i*9+(swap3*3+j)+1];
+				grid[i*9+(swap3*3+j)+1] = k;
+				}
+			}
+			break;
+		}
+	}
+}
 </script>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*3+j)+1] = grid[i*9+(swap3*3+j)+1];
+				grid[i*9+(swap3*3+j)+1] = k;
+				}
+			}
+			break;
+		}
+	}
+}
+</script>
+</html>
+j)+1];
+				grid[i*9+(swap3*3+j)+1] = k;
+				}
+			}
+			break;
+		}
+	}
+}
+</script>
+</html>
