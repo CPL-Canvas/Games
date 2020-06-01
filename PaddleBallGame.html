@@ -141,6 +141,7 @@ function moveEverything(){
 			speed++;	// increment speed to make it progressively harder
 			paddleCinc++;// increment computer paddle speed
 			volleys++;
+			player = !player;
 			console.log('speed = ',speed, 'CPinc = ',paddleCinc);
 			incX = -incX;
 			incY = speed * dy/PADDLE_HEIGHT*2;
@@ -150,7 +151,7 @@ function moveEverything(){
 	if(ballX <= 20 + ballR){
 		incX = -incX;
 		ballX = 20 + ballR + incX;
-		player = !player;
+//		player = !player;
 	} 
 
 //  reflect off top and bottom walls
