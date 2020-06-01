@@ -5,6 +5,7 @@ var canvas;
 var ctx;
 var ballR = 10;
 var	ballX;
+var lastBallX;
 var ballY;
 
 var playerScore = 0;
@@ -101,8 +102,13 @@ function moveEverything(){
 		return;
 	}
 	
+	lastBallX = ballX;
 	ballX += incX;  // move the ball
 	ballY += incY;
+	
+	if(incX < 0 && lastBallX > 400 && ballX <= 400){   // moving left
+		player = !player;		// swap players
+	}
 	
 // right wall hit
 	if(ballX >= canvas.width-20-ballR){
@@ -141,7 +147,6 @@ function moveEverything(){
 			speed++;	// increment speed to make it progressively harder
 			paddleCinc++;// increment computer paddle speed
 			volleys++;
-			player = !player;
 			console.log('speed = ',speed, 'CPinc = ',paddleCinc);
 			incX = -incX;
 			incY = speed * dy/PADDLE_HEIGHT*2;
@@ -151,7 +156,7 @@ function moveEverything(){
 	if(ballX <= 20 + ballR){
 		incX = -incX;
 		ballX = 20 + ballR + incX;
-//		player = !player;  // changed to paddle hit  
+//		player = !player;  // changed to passing left through 400  
 	} 
 
 //  reflect off top and bottom walls
