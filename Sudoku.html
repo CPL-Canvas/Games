@@ -155,9 +155,10 @@ function processClick(){
 	}else{										// grid area
 		i = Math.floor((mousePos.x - gridOffset.x)/gridInc.x);
 		j = Math.floor((mousePos.y - gridOffset.y)/gridInc.y);
-		if(i >= 0 && i <= 8 && j >= 0 && j <= 9){
+		if(i >= 0 && i <= 8 && j >= 0 && j <= 8){
 			lhit = hit;
 			hit = (i+j*9+1);
+console.log('lhit= ',lhit,' hit= ',hit);			
 			if(setup){
 				if(lhit == 0){
 					grid[hit] = 0;			// cancel grid value
@@ -171,7 +172,9 @@ function processClick(){
 				}
 			}else{					// not setup
 				if(lhit < 0){
-					grid[hit] = -lhit;		// grid value for game play or cancel
+					if(grid[hit] >= 0){
+						grid[hit] = -lhit;		// grid value for game play or cancel
+					}
 					hit = lhit = 0;			// cancel highlight
 				}else if(lhit == 0){
 					if(grid[hit] > 0){
