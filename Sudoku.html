@@ -25,7 +25,7 @@ var nSave = 0;
 
 /////////////  database  //////////////////
 var grid = [];  //[82];  // use 1-81
-var gridSave = [[0,0,0,0,0,0,0,0,0,]];
+var gridSave = [[0,0,0,0,0,0,0,0,0]];
 // 0 indicate display minor
 // 1 to 9 blue, -1 to -9 red(setup)
 var avail = [[0,0,0,0,0,0,0,0,0,0]];  //[82][10] use 1-81, 1-9
@@ -63,6 +63,16 @@ window.onload = function(){
 	canvas = document.getElementById('gameCanvas');
 	ctx = canvas.getContext('2d');
 	for(i=1;i<82;i++) avail.push([0,1,2,3,4,5,6,7,8,9]);  // create the 2d array
+	for(i=1;i<10;i++) gridSave.push([0,0,0,0,0,0,0,0,0,
+									 0,0,0,0,0,0,0,0,0,
+									 0,0,0,0,0,0,0,0,0,
+									 0,0,0,0,0,0,0,0,0,
+									 0,0,0,0,0,0,0,0,0,
+									 0,0,0,0,0,0,0,0,0,
+									 0,0,0,0,0,0,0,0,0,
+									 0,0,0,0,0,0,0,0,0,
+									 0,0,0,0,0,0,0,0,0]);  // create 9 places to save grid
+	
 	initialize();
 	paint();
 
@@ -141,20 +151,23 @@ function processClick(){
 			}
 		}else if(mousePos.x >= 600 && mousePos.x <= 670 &&
 			mousePos.y >= 200 && mousePos.y <= 240){		// Save
-				gridSave.push(grid);
-				nSave++;
-//				console.log('push:gridSave = ',gridSave.length);
-//				console.log('push:gridSave  = ',gridSave[nSave].length);
-				console.log('push:grid: ',grid);
-				console.log('push:nSave = ',nSave,' gridSave: ',gridSave[nSave]);
+				if(nSave < 9){
+					nSave++;
+					for(i=0;i<82;i++){
+						gridSave[nSave][i] = grid[i];
+					}
+//				console.log('push:gridSave.length = ',gridSave.length);
+//				console.log('push:gridSave[nSave].length  = ',gridSave[nSave].length);
+//				console.log('push:grid: ',grid);
+//				console.log('push: gridSave[',nSave,']: ',gridSave[nSave]);
+				}
 		}else if(mousePos.x >= 690 && mousePos.x <= 760 &&
 			mousePos.y >= 200 && mousePos.y <= 240){		// Restore 
 				if(nSave >0){
-//					console.log('pop:gridSave = ',gridSave[nSave].length);
-					console.log('pop:nSave = ',nSave,' gridSave: ',gridSave[nSave]);
-//					console.log(gridSave.pop());
-//					console.log('pop:grid = ',grid.length);
-					console.log('pop:grid:',grid);
+					for(i=0;i<82;i++){
+						grid[i] = gridSave[nSave][i];		//push and pop only work with literals, not variables
+					}
+//					console.log('pop:grid= ',grid);
 					nSave--;
 					paint();
 				}
