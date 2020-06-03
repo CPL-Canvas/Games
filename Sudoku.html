@@ -200,7 +200,7 @@ function processClick(){
 				}
 			}
 		}
-	}else{										// grid area
+	}else if(setup > -1){			// don't do anything w/ setup == -1		// grid area
 		i = Math.floor((mousePos.x - gridOffset.x)/gridInc.x);
 		j = Math.floor((mousePos.y - gridOffset.y)/gridInc.y);
 		if(i >= 0 && i <= 8 && j >= 0 && j <= 8){
