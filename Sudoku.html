@@ -2,6 +2,7 @@
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 
 <script>
+var vers = "V1.20";	// manually update each save
 var canvas;
 var ctx;
 var bkgnd = '#FFEBCD';	// background color
@@ -539,6 +540,10 @@ function drawButtons(){
 
 	ctx.fillText('Notation On',690,360);
 	
+	ctx.textAlign = 'left';
+	ctx.font = '12px Verdana';
+	ctx.fillText(vers,25,578);
+
 	if(hintsOn){
 		ctx.beginPath();
 		ctx.lineWidth = '2';
