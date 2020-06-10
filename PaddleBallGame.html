@@ -1,6 +1,7 @@
 <html>
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 <script>
+var vers = "V1.20";	// manually update each save
 var canvas;
 var ctx;
 var ballR = 10;
@@ -180,6 +181,11 @@ function drawEverything() {
 	ctx.textBaseline = 'top';
 	ctx.fillStyle = 'Blue';
 	ctx.fillText('PaddleBall Game',canvas.width/2,30);
+	
+	ctx.textAlign = 'left';
+	ctx.font = '12px Verdana';
+	ctx.fillText(vers,25,578);
+
 // add "serve" if mode = 0
 	if(mode == 0){  // serve mode
 		ctx.font = '30px Verdana';
