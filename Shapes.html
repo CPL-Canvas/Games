@@ -7,7 +7,7 @@
 <body>
 <canvas id="gameCanvas" width="800" height="600"> </canvas>
 <script>
-var vers = "V1.21";	// manually update each save
+var vers = "V1.22";	// manually update each save
 ////////////////////////////////
 //
 //     shapes.html
@@ -532,6 +532,7 @@ function drawButtons(){
 	
 	PBlist();	// get possible list
 	if(state == 16){			// Winner!
+		ctx.textAlign = 'center';
 		ctx.font = 'italic 50px Comic Sans MS';
 		ctx.fillText('Winner!',225,255);
 	}else if(nPB == 0){
